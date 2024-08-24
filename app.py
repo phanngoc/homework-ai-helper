@@ -1,20 +1,32 @@
 # app.py
-from flask import Flask, request, jsonify, url_for
+import re
+from flask import Flask, request, jsonify, url_for, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from flask_oauthlib.client import OAuth
 import openai
 import cv2
 import numpy as np
+import base64
 from dotenv import load_dotenv
 import os
+from flask import session
+import requests
+import uuid
+from flask_cors import CORS 
 
 # Load environment variables from .env file
 load_dotenv()
 
-app = Flask(__name__)
+client = openai.OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+
+app = Flask(__name__, static_folder='static', template_folder='templates')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('SQLALCHEMY_DATABASE_URI')
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+print('env:SQLALCHEMY_DATABASE_URI', app.config['SQLALCHEMY_DATABASE_URI'])
+
 db = SQLAlchemy(app)
 oauth = OAuth(app)
+CORS(app)
 
 # Google OAuth setup
 google = oauth.remote_app(
@@ -50,12 +62,16 @@ class Comment(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     text = db.Column(db.Text, nullable=False)
 
+# Ensure database tables are created within the application context
+with app.app_context():
+    print('app_context')
+    db.create_all()
+
 # Routes
 @app.route('/login')
 def login():
     return google.authorize(callback=url_for('authorized', _external=True))
 
-from flask import session
 
 @app.route('/login/authorized')
 def authorized():
@@ -74,23 +90,71 @@ def authorized():
 def get_google_oauth_token():
     return session.get('google_token')
 
+# write function load index page and App.js file
+@app.route('/')
+def index():
+    print('index')
+    return app.send_static_file('index.html')
+
+# Function to encode the image
+def encode_image(image_path):
+  with open(image_path, "rb") as image_file:
+    return base64.b64encode(image_file.read()).decode('utf-8')
+
+
+def resolve_solution(url, action):
+    if action == 'suggestion':
+        question_text = "Đề xuất các gợi ý để giải quyết vấn đề"
+    else:
+        question_text = "Chọn đáp án đúng và đưa ra lời giải thích"
+
+    image_base64 = encode_image(url)
+    system_message = "Bạn là một giáo viên toán cấp 3, đang hướng dẫn học sinh thi tốt nghiệp đại học."
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "system", "content": system_message},
+            {
+                "role": "user",
+                "content": [
+                {
+                    "type": "text",
+                    "text": question_text,
+                },
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": f"data:image/jpeg;base64,{image_base64}"
+                    },
+                },
+            ]
+            },
+        ],
+        max_tokens=300,
+    )
+    return response.choices[0].message.content
+
 @app.route('/upload', methods=['POST'])
 def upload():
+    action = request.form.get('action', type=str)
+    temp_url = request.form.get('temp_url', type=str)
+    response = resolve_solution(temp_url, action)
+
+    return jsonify({'response': response})
+
+@app.route('/upload_screenshot', methods=['POST'])
+def upload_screenshot():
     file = request.files['file']
     npimg = np.fromfile(file, np.uint8)
     img = cv2.imdecode(npimg, cv2.IMREAD_COLOR)
-    # Process image with OpenCV and extract question text
-    question_text = "Extracted question text"
-    # Use OpenAI API to get answer
-    openai.api_key = os.getenv('OPENAI_API_KEY')
-    response = openai.Image.create(
-        file=open(file, "rb"),
-        prompt=question_text,
-        n=1,
-        size="1024x1024"
-    )
-    answer_text = response['data'][0]['url']
-    return jsonify({'question': question_text, 'answer': answer_text})
+    
+    # Save the image to a temporary location
+    temp_filename = f"temp_{uuid.uuid4().hex}.jpg"
+    temp_filepath = os.path.join('uploads', temp_filename)
+    print('temp_filepath', temp_filepath)
+    cv2.imwrite(temp_filepath, img)
+
+    return jsonify({'temporary_url': temp_filepath})
 
 @app.route('/questions/<int:question_id>/comments', methods=['GET'])
 def get_comments(question_id):
@@ -118,5 +182,4 @@ def post_comment(question_id):
     })
 
 if __name__ == '__main__':
-    db.create_all()
     app.run(debug=True)
