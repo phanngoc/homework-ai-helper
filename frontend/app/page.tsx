@@ -1,13 +1,14 @@
 "use client";
 
 // App.js show main component for homepage, task screenshot, upload image, and display answer
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useDispatch, useSelector, Provider } from 'react-redux';
 import Webcam, { WebcamProps } from 'react-webcam';
-import { getAnswer, uploadScreenshot } from './actions';
+import { setToken } from './reducers';
 import DiscussionBoard from './components/DiscussionBoard';
 import { RootState } from '@reduxjs/toolkit/query';
 import store from './store';
+import { getAnswer, uploadScreenshot } from './actions';
 
 function App({  }) {
   const [file, setFile] = useState<File | null>(null);
@@ -18,13 +19,25 @@ function App({  }) {
   const webcamRef = useRef(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('e.target.files:', e.target.files);
     if (e.target.files) {
       setFile(e.target.files[0]);
+      dispatch(uploadScreenshot(e.target.files[0]));
     }
   };
 
-  const handleSubmit = (action : any) => {
-      dispatch(getAnswer(action, temporaryUrl));
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    console.log('urlParams:', urlParams);
+    const token = urlParams.get('token');
+    if (token) {
+        localStorage.setItem('authToken', token);
+        dispatch(setToken(token)); // Dispatch an action to save the token in the Redux store
+    }
+  }, []);
+
+  const handleSubmit = (action : string) => {
+      dispatch(getAnswer({action, temporaryUrl}));
   };
 
   const handleTakeScreenshot = useCallback(async () => {
@@ -33,10 +46,17 @@ function App({  }) {
     dispatch(uploadScreenshot(imageSrc));
   }, [webcamRef]);
 
+  const handleLogin = () => {
+    window.location.href = `http://127.0.0.1:5000/login`;
+  };
+
   return (
     <Provider store={store}>
       <div className="flex flex-col min-h-screen p-4">
-        <h1 className="text-2xl font-bold mb-4">Brainly: AI Homework Helper</h1>
+        <h1 className="text-2xl font-bold mb-4">AI Homework Helper</h1>
+        <button onClick={handleLogin} className="bg-blue-500 text-white px-4 py-2 rounded mb-4">
+          Login with Google
+        </button>
         <input type="file" onChange={handleFileChange} className="mb-4 p-2 border rounded" />
         <Webcam
           audio={false}
@@ -70,7 +90,7 @@ function App({  }) {
 }
 
 // Wrap the App component with the Provider and pass the store
-export default function WrappedApp(props) {
+export default function WrappedApp(props: any) {
   return (
     <Provider store={store}>
       <App {...props} />

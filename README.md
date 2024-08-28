@@ -31,3 +31,18 @@ POSTGRES_USER=user
 POSTGRES_PASSWORD=password
 POSTGRES_DB=dbname
 ```
+
+## Run for development
+- Backend
+```bash
+cd backend
+pip install -r requirements.txt
+python app.py
+```
+
+- Frontend
+```bash
+cd frontend
+npm install
+npm start dev
+```

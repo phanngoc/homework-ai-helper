@@ -1,8 +1,8 @@
 # app.py
-import re
-from flask import Flask, request, jsonify, url_for, send_from_directory
+import json
+from flask import Flask, request, jsonify, url_for, send_from_directory, redirect
 from flask_sqlalchemy import SQLAlchemy
-from flask_oauthlib.client import OAuth
+from authlib.integrations.flask_client import OAuth
 import openai
 import cv2
 import numpy as np
@@ -10,85 +10,154 @@ import base64
 from dotenv import load_dotenv
 import os
 from flask import session
-import requests
 import uuid
 from flask_cors import CORS 
+import secrets
+from sqlalchemy import inspect
+import jwt
+import datetime
+from openai_resolve import resolve_solution
+from functools import wraps
 
 # Load environment variables from .env file
 load_dotenv()
 
-client = openai.OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
-
 app = Flask(__name__, static_folder='static', template_folder='templates')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('SQLALCHEMY_DATABASE_URI')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SECRET_KEY'] = secrets.token_hex(16)
+
 print('env:SQLALCHEMY_DATABASE_URI', app.config['SQLALCHEMY_DATABASE_URI'])
 
 db = SQLAlchemy(app)
 oauth = OAuth(app)
 CORS(app)
 
+def token_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        token = None
+
+        # Check if the token is passed in the request headers
+        if 'x-access-token' in request.headers:
+            token = request.headers['x-access-token']
+
+        # If token is not provided, return an error
+        if not token:
+            return jsonify({'message': 'Token is missing!'}), 401
+
+        try:
+            # Decode the token
+            data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=["HS256"])
+            print('token_required:data', data)
+            current_user = User.query.filter_by(id=data['id']).first()
+        except:
+            return jsonify({'message': 'Token is invalid!'}), 401
+
+        return f(current_user, *args, **kwargs)
+
+    return decorated
+# Load Google OAuth credentials from JSON file
+with open('secret/client_secret_729346947261-6btkvj36hci72mtc5mpkp1pfmqo1pnob.apps.googleusercontent.com.json') as f:
+    google_creds = json.load(f)['web']
+
 # Google OAuth setup
-google = oauth.remote_app(
-    'google',
-    consumer_key=os.getenv('GOOGLE_CLIENT_ID'),
-    consumer_secret=os.getenv('GOOGLE_CLIENT_SECRET'),
-    request_token_params={
-        'scope': 'email',
-    },
-    base_url='https://www.googleapis.com/oauth2/v1/',
-    request_token_url=None,
-    access_token_method='POST',
-    access_token_url='https://accounts.google.com/o/oauth2/token',
-    authorize_url='https://accounts.google.com/o/oauth2/auth',
+google = oauth.register(
+    name='google',
+    client_id=google_creds['client_id'],
+    client_secret=google_creds['client_secret'],
+    authorize_url=google_creds['auth_uri'],
+    access_token_url=google_creds['token_uri'],
+    authorize_params=None,
+    access_token_params=None,
+    refresh_token_url=None,
+    redirect_uri=os.getenv('GOOGLE_REDIRECT_URI'),
+    client_kwargs={'scope': 'email profile'},
 )
 
 # Models
 class User(db.Model):
+    __tablename__ = 'users'
     id = db.Column(db.Integer, primary_key=True)
+    identity = db.Column(db.String(120), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
-    role = db.Column(db.String(10), nullable=False)  # 'teacher' or 'student'
-    subscription = db.Column(db.String(10), nullable=False)  # 'free' or 'premium'
+    name = db.Column(db.String(120), unique=False, nullable=True)
+    role = db.Column(db.String(10), nullable=True)  # 'teacher' or 'student'
+    profile_pic = db.Column(db.String(200), nullable=True)
+    subscription = db.Column(db.String(10), nullable=True)  # 'free' or 'premium'
 
 class Question(db.Model):
+    __tablename__ = 'questions'
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     question_text = db.Column(db.Text, nullable=False)
     answer_text = db.Column(db.Text)
 
 class Comment(db.Model):
+    __tablename__ = 'comments'
     id = db.Column(db.Integer, primary_key=True)
-    question_id = db.Column(db.Integer, db.ForeignKey('question.id'), nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    question_id = db.Column(db.Integer, db.ForeignKey('questions.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     text = db.Column(db.Text, nullable=False)
+
+def list_tables():
+    inspector = inspect(db.engine)
+    tables = inspector.get_table_names()
+    print("Tables in the database:", tables)
 
 # Ensure database tables are created within the application context
 with app.app_context():
     print('app_context')
     db.create_all()
+    list_tables()
 
 # Routes
 @app.route('/login')
 def login():
-    return google.authorize(callback=url_for('authorized', _external=True))
+    redirect_uri = url_for('authorized', _external=True)
+    return google.authorize_redirect(redirect_uri)
 
+
+def generate_token(user_info):
+    payload = {
+        'email': user_info['email'],
+        'id': user_info['id'],
+        'name': user_info['name'],
+        'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=1)  # Token expiration time
+    }
+    token = jwt.encode(payload, app.config['SECRET_KEY'], algorithm='HS256')
+    return token
 
 @app.route('/login/authorized')
 def authorized():
-    response = google.authorized_response()
-    if response is None or response.get('access_token') is None:
+    token = google.authorize_access_token()
+    if token is None:
         return 'Access denied: reason={} error={}'.format(
-            request.args['error_reason'],
-            request.args['error_description']
+            request.args.get('error_reason'),
+            request.args.get('error_description')
         )
-    session['google_token'] = (response['access_token'], '')
-    user_info = google.get('userinfo')
-    # Handle user info and create user in DB if not exists
-    return jsonify(user_info.data)
+    session['google_token'] = token
+    print('token', token)
+     # Fix the MissingSchema error by providing the full URL with scheme
+    user_info = google.get('https://www.googleapis.com/oauth2/v1/userinfo').json()
+    print('user_info', user_info)
+    # Save user info to the database
+    user = User.query.filter_by(email=user_info['email']).first()
+    if user is None:
+        user = User(
+            identity=user_info['id'],
+            email=user_info['email'],
+            name=user_info['name'],
+            profile_pic=user_info['picture']
+        )
+        db.session.add(user)
+        db.session.commit()
+        # Generate JWT token
+        jwt_token = generate_token(user_info)
 
-@google.tokengetter
-def get_google_oauth_token():
-    return session.get('google_token')
+    # Redirect to the frontend app with the token
+    frontend_url = f"http://localhost:3000?token={jwt_token}"
+    return redirect(frontend_url)
 
 # write function load index page and App.js file
 @app.route('/')
@@ -96,50 +165,14 @@ def index():
     print('index')
     return app.send_static_file('index.html')
 
-# Function to encode the image
-def encode_image(image_path):
-  with open(image_path, "rb") as image_file:
-    return base64.b64encode(image_file.read()).decode('utf-8')
-
-
-def resolve_solution(url, action):
-    if action == 'suggestion':
-        question_text = "Đề xuất các gợi ý để giải quyết vấn đề"
-    else:
-        question_text = "Chọn đáp án đúng và đưa ra lời giải thích"
-
-    image_base64 = encode_image(url)
-    system_message = "Bạn là một giáo viên toán cấp 3, đang hướng dẫn học sinh thi tốt nghiệp đại học."
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": system_message},
-            {
-                "role": "user",
-                "content": [
-                {
-                    "type": "text",
-                    "text": question_text,
-                },
-                {
-                    "type": "image_url",
-                    "image_url": {
-                        "url": f"data:image/jpeg;base64,{image_base64}"
-                    },
-                },
-            ]
-            },
-        ],
-        max_tokens=300,
-    )
-    return response.choices[0].message.content
-
-@app.route('/upload', methods=['POST'])
-def upload():
+@app.route('/api/answer', methods=['POST'])
+@token_required
+def answer():
     action = request.form.get('action', type=str)
     temp_url = request.form.get('temp_url', type=str)
+    print('method:answer', action, temp_url)
     response = resolve_solution(temp_url, action)
-
+    print('method:ai-answer', response)
     return jsonify({'response': response})
 
 @app.route('/upload_screenshot', methods=['POST'])

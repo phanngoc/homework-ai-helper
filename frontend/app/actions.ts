@@ -1,5 +1,5 @@
-import axios, { AxiosResponse } from 'axios';
-import { Dispatch } from 'redux';
+import { createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';
+import axios from 'axios';
 
 const BASE_URL = 'http://127.0.0.1:5000';
 
@@ -15,25 +15,44 @@ const dataURLtoBlob = (dataurl: string) => {
   return new Blob([u8arr], { type: mime });
 };
 
-export const uploadScreenshot = (imageSrc: string) => async (dispatch: Dispatch) => {
-  try {
-    const blob = dataURLtoBlob(imageSrc);
-    const formData = new FormData();
-    formData.append('file', blob);
+// Create async thunks for the actions
+export const uploadScreenshot = createAsyncThunk(
+  'api/uploadScreenshot',
+  async (imageSrc: string | File, { rejectWithValue }) => {
+    try {
+      let blob: Blob;
+      if (typeof imageSrc === 'string') {
+        // Convert base64 string to Blob
+        blob = dataURLtoBlob(imageSrc);
+      } else {
+        // Use the File object directly
+        blob = imageSrc;
+      }
 
-    const response = await axios.post(BASE_URL + '/upload_screenshot', formData);
-    dispatch({ type: 'UPLOAD_SCREENSHOT_SUCCESS', payload: response.data.temporary_url });
-  } catch (error) {
-    dispatch({ type: 'UPLOAD_SCREENSHOT_FAILURE', payload: error.message });
-  }
-};
+      const formData = new FormData();
+      formData.append('file', blob);
 
-// write function getAnswer from server
-export const getAnswer = (action: string, temporaryUrl: string) => async (dispatch: Dispatch) => {
-  try {
-    const response = await axios.post(upload_screenshot + '/get_answer', { action, temporaryUrl });
-    dispatch({ type: 'RETRIEVE_ANSWER_SUCCESS', payload: response.data.answer });
-  } catch (error) {
-    dispatch({ type: 'RETRIEVE_ANSWER_FAILURE', payload: error.message });
+      const response = await axios.post(BASE_URL + '/upload_screenshot', formData);
+      return response.data.temporary_url;
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
   }
-};
+);
+
+export const getAnswer = createAsyncThunk(
+  'api/getAnswer',
+  async ({ action, temporaryUrl }: { action: string; temporaryUrl: string }, { rejectWithValue }) => {
+    const token = localStorage.getItem('authToken');
+    try {
+      const response = await axios.post(BASE_URL + '/api/answer', { action, temporaryUrl }, {
+        headers: {
+          'x-access-token': token,
+        },
+      });
+      return response.data.answer;
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
