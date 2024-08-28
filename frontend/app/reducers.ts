@@ -1,8 +1,12 @@
+import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { getAnswer, uploadScreenshot } from './actions';
+
 // Define the shape of the state
 interface RootState {
   answer: string | null;
   error: string | null;
   imageSrc: string | null;
+  token: string | null;
 }
 
 // Define the initial state with proper typing
@@ -10,31 +14,58 @@ const initialState: RootState = {
   answer: null,
   error: null,
   imageSrc: null,
+  token: null,
 };
 
-// Define action types
-const RETRIEVE_ANSWER_SUCCESS = 'RETRIEVE_ANSWER_SUCCESS';
-const UPLOAD_SCREENSHOT_FAILURE = 'UPLOAD_SCREENSHOT_FAILURE';
-// UPLOAD_SCREENSHOT_SUCCESS
-const UPLOAD_SCREENSHOT_SUCCESS = 'UPLOAD_SCREENSHOT_SUCCESS';
+// Create a slice
+const appSlice = createSlice({
+  name: 'app',
+  initialState,
+  reducers: {
+    retrieveAnswerSuccess(state, action: PayloadAction<string>) {
+      state.answer = action.payload;
+    },
+    uploadScreenshotFailure(state, action: PayloadAction<string>) {
+      state.error = action.payload;
+    },
+    uploadScreenshotSuccess(state, action: PayloadAction<string>) {
+      state.imageSrc = action.payload;
+    },
+    setToken(state, action: PayloadAction<string>) {
+      state.token = action.payload;
+      localStorage.setItem('authToken', action.payload);
+    },
+  },
+  extraReducers: (builder) => {
+    builder
+      .addCase(uploadScreenshot.pending, (state) => {
+        state.error = null;
+      })
+      .addCase(uploadScreenshot.fulfilled, (state, action: PayloadAction<string>) => {
+        state.imageSrc = action.payload;
+      })
+      .addCase(uploadScreenshot.rejected, (state, action: PayloadAction<string>) => {
+        state.error = action.payload;
+      })
+      .addCase(getAnswer.pending, (state) => { // Handle getAnswer.pending
+        state.error = null;
+      })
+      .addCase(getAnswer.fulfilled, (state, action: PayloadAction<string>) => { // Handle getAnswer.fulfilled
+        state.answer = action.payload;
+      })
+      .addCase(getAnswer.rejected, (state, action: PayloadAction<string>) => { // Handle getAnswer.rejected
+        state.error = action.payload;
+      });
+  },
+});
 
+// Export actions
+export const {
+  retrieveAnswerSuccess,
+  uploadScreenshotFailure,
+  uploadScreenshotSuccess,
+  setToken,
+} = appSlice.actions;
 
-// Refactor the reducer with proper typing
-import { AnyAction } from 'redux';
-
-export const rootReducer = (state = initialState, action: AnyAction): RootState => {
-  switch (action.type) {
-    case RETRIEVE_ANSWER_SUCCESS:
-      return { ...state, answer: action.payload };
-    case UPLOAD_SCREENSHOT_FAILURE:
-      return { ...state, error: action.payload };
-    case UPLOAD_SCREENSHOT_SUCCESS:
-        return {
-          ...state,
-          imageSrc: action.payload,
-        };
-      // other cases
-    default:
-      return state;
-  }
-};
+// Export reducer
+export default appSlice.reducer;
