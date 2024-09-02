@@ -42,15 +42,17 @@ export const uploadScreenshot = createAsyncThunk(
 
 export const getAnswer = createAsyncThunk(
   'api/getAnswer',
-  async ({ action, temporaryUrl }: { action: string; temporaryUrl: string }, { rejectWithValue }) => {
+  async ({ action, imageSrc }: { action: string; imageSrc: string }, { rejectWithValue }) => {
     const token = localStorage.getItem('authToken');
+    console.log('getAnswer:token:', token, imageSrc);
     try {
-      const response = await axios.post(BASE_URL + '/api/answer', { action, temporaryUrl }, {
+      const response = await axios.post(BASE_URL + '/api/answer', { action, imageSrc }, {
         headers: {
           'x-access-token': token,
         },
       });
-      return response.data.answer;
+      console.log('getAnswer:response:', response);
+      return response.data.response;
     } catch (error) {
       return rejectWithValue(error.message);
     }

@@ -9,13 +9,14 @@ import DiscussionBoard from './components/DiscussionBoard';
 import { RootState } from '@reduxjs/toolkit/query';
 import store from './store';
 import { getAnswer, uploadScreenshot } from './actions';
+import MathResponseComponent from './components/MathResponse';
 
 function App({  }) {
   const [file, setFile] = useState<File | null>(null);
   const [screenshot, setScreenshot] = useState(null);
-  const [temporaryUrl, setTemporaryUrl] = useState(null);
+  const imageSrc = useSelector((state: RootState) => state.imageSrc);
   const dispatch = useDispatch();
-  const answer = useSelector((state: RootState<any, any, any>) => state.answer);
+  const answer = useSelector((state: RootState) => state.answer);
   const webcamRef = useRef(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -37,7 +38,8 @@ function App({  }) {
   }, []);
 
   const handleSubmit = (action : string) => {
-      dispatch(getAnswer({action, temporaryUrl}));
+    console.log('handleSubmit:action:', action, imageSrc);
+    dispatch(getAnswer({action, imageSrc}));
   };
 
   const handleTakeScreenshot = useCallback(async () => {
@@ -49,7 +51,7 @@ function App({  }) {
   const handleLogin = () => {
     window.location.href = `http://127.0.0.1:5000/login`;
   };
-
+  console.log('answer:', answer);
   return (
     <Provider store={store}>
       <div className="flex flex-col min-h-screen p-4">
@@ -80,8 +82,8 @@ function App({  }) {
         {answer && (
           <div className="answer-wrap p-4 border rounded">
             <h2 className="text-xl font-semibold mb-2">Answer:</h2>
-            <p className="mb-4">{answer}</p>
-            <DiscussionBoard questionId={answer.questionId} />
+            <MathResponseComponent response={answer.response.parsed} />
+            {/* <DiscussionBoard questionId={answer.questionId} /> */}
           </div>
         )}
       </div>
