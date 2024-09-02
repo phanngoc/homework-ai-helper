@@ -4,6 +4,8 @@
 
 `homework-ai-helper` is a web application designed to assist students with their homework by leveraging AI technologies. The application allows users to upload images of their homework questions, which are then processed using OpenAI's API to generate answers. The project is built using Flask for the backend and React for the frontend.
 
+![alt text](<docs/screenshot.png>)
+
 ## Features
 
 - **Image Upload**: Users can upload images of their homework questions.
