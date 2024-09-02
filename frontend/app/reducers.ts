@@ -22,13 +22,15 @@ const appSlice = createSlice({
   name: 'app',
   initialState,
   reducers: {
-    retrieveAnswerSuccess(state, action: PayloadAction<string>) {
+    retrieveAnswerSuccess(state, action: PayloadAction<any>) {
       state.answer = action.payload;
+      console.log('retrieveAnswerSuccess:answer');
     },
     uploadScreenshotFailure(state, action: PayloadAction<string>) {
       state.error = action.payload;
     },
     uploadScreenshotSuccess(state, action: PayloadAction<string>) {
+      console.log('uploadScreenshotSuccess:action', action);
       state.imageSrc = action.payload;
     },
     setToken(state, action: PayloadAction<string>) {
@@ -51,6 +53,7 @@ const appSlice = createSlice({
         state.error = null;
       })
       .addCase(getAnswer.fulfilled, (state, action: PayloadAction<string>) => { // Handle getAnswer.fulfilled
+        console.log('getAnswer.fulfilled:action:', action);
         state.answer = action.payload;
       })
       .addCase(getAnswer.rejected, (state, action: PayloadAction<string>) => { // Handle getAnswer.rejected
