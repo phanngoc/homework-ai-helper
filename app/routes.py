@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify, url_for, session, redirect
 from .models import User
-from .extensions import db, oauth
+from .extensions import db, google
 from flask import current_app
 import jwt
 import datetime
@@ -39,8 +39,8 @@ def token_required(f):
 # Routes
 @main_bp.route('/login')
 def login():
-    redirect_uri = url_for('authorized', _external=True)
-    return oauth.google.authorize_redirect(redirect_uri)
+    redirect_uri = url_for('main.authorized', _external=True)
+    return google.authorize_redirect(redirect_uri)
 
 
 def generate_token(user_info):
@@ -50,12 +50,12 @@ def generate_token(user_info):
         'name': user_info['name'],
         'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=24*7)  # Token expiration time
     }
-    token = jwt.encode(payload, main_bp.config['SECRET_KEY'], algorithm='HS256')
+    token = jwt.encode(payload, current_app.config['SECRET_KEY'], algorithm='HS256')
     return token
 
 @main_bp.route('/login/authorized')
 def authorized():
-    token = oauth.google.authorize_access_token()
+    token = google.authorize_access_token()
     if token is None:
         return 'Access denied: reason={} error={}'.format(
             request.args.get('error_reason'),
@@ -65,7 +65,7 @@ def authorized():
     session['google_token'] = token
     print('token', token)
      # Fix the MissingSchema error by providing the full URL with scheme
-    user_info = oauth.google.get('https://www.googleapis.com/oauth2/v1/userinfo').json()
+    user_info = google.get('https://www.googleapis.com/oauth2/v1/userinfo').json()
     print('user_info', user_info)
     # Save user info to the database
     user = User.query.filter_by(email=user_info['email']).first()
