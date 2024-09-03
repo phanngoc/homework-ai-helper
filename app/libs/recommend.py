@@ -1,9 +1,10 @@
-
+"""
 convert problem into questions
 add tables for performance_data (using student_id, problem_id, score, update_at, create_at)
 change: read from csv to read from database
 add: columns questions (id, category, grade)
 seed data: for questions
+"""
 
 import pandas as pd
 from surprise import Dataset, Reader, SVD

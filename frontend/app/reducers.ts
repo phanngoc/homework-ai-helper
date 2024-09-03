@@ -7,6 +7,7 @@ interface RootState {
   error: string | null;
   imageSrc: string | null;
   token: string | null;
+  question: any | null; // Add question to the state
 }
 
 // Define the initial state with proper typing
@@ -15,6 +16,7 @@ const initialState: RootState = {
   error: null,
   imageSrc: null,
   token: null,
+  question: null, // Initialize question
 };
 
 // Create a slice
@@ -37,6 +39,9 @@ const appSlice = createSlice({
       state.token = action.payload;
       localStorage.setItem('authToken', action.payload);
     },
+    setQuestion(state, action: PayloadAction<any>) { // Add setQuestion action
+      state.question = action.payload;
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -52,9 +57,9 @@ const appSlice = createSlice({
       .addCase(getAnswer.pending, (state) => { // Handle getAnswer.pending
         state.error = null;
       })
-      .addCase(getAnswer.fulfilled, (state, action: PayloadAction<string>) => { // Handle getAnswer.fulfilled
-        console.log('getAnswer.fulfilled:action:', action);
-        state.answer = action.payload;
+      .addCase(getAnswer.fulfilled, (state, action: PayloadAction<any>) => { // Handle getAnswer.fulfilled
+        state.answer = action.payload.answer;
+        state.question = action.payload.question;
       })
       .addCase(getAnswer.rejected, (state, action: PayloadAction<string>) => { // Handle getAnswer.rejected
         state.error = action.payload;
@@ -68,6 +73,7 @@ export const {
   uploadScreenshotFailure,
   uploadScreenshotSuccess,
   setToken,
+  setQuestion, // Export setQuestion action
 } = appSlice.actions;
 
 // Export reducer

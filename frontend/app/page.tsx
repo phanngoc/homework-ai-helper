@@ -9,15 +9,18 @@ import DiscussionBoard from './components/DiscussionBoard';
 import { RootState } from '@reduxjs/toolkit/query';
 import store from './store';
 import { getAnswer, uploadScreenshot } from './actions';
-import MathResponseComponent from './components/MathResponse';
+import MathResponse from './components/MathResponse';
+import { useNavigate } from 'react-router-dom';
 
 function App({  }) {
   const [file, setFile] = useState<File | null>(null);
   const [screenshot, setScreenshot] = useState(null);
   const imageSrc = useSelector((state: RootState) => state.imageSrc);
+  const question = useSelector((state: RootState) => state.question);
   const dispatch = useDispatch();
   const answer = useSelector((state: RootState) => state.answer);
   const webcamRef = useRef(null);
+  const navigate = useNavigate();
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     console.log('e.target.files:', e.target.files);
@@ -37,9 +40,13 @@ function App({  }) {
     }
   }, []);
 
-  const handleSubmit = (action : string) => {
+  const handleSubmit = async (action : string) => {
     console.log('handleSubmit:action:', action, imageSrc);
-    dispatch(getAnswer({action, imageSrc}));
+    const result = await dispatch(getAnswer({ action, imageSrc }));
+    if (getAnswer.fulfilled.match(result)) {
+      const questionId = result.payload.question.id;
+      navigate(`/question/${questionId}`);
+    }
   };
 
   const handleTakeScreenshot = useCallback(async () => {
@@ -82,8 +89,8 @@ function App({  }) {
         {answer && (
           <div className="answer-wrap p-4 border rounded">
             <h2 className="text-xl font-semibold mb-2">Answer:</h2>
-            <MathResponseComponent response={answer.response.parsed} />
-            {/* <DiscussionBoard questionId={answer.questionId} /> */}
+            <MathResponse response={answer.response.parsed} />
+            {question && <DiscussionBoard questionId={question.id} />}
           </div>
         )}
       </div>

@@ -52,7 +52,7 @@ export const getAnswer = createAsyncThunk(
         },
       });
       console.log('getAnswer:response:', response);
-      return response.data.response;
+      return response.data;
     } catch (error) {
       return rejectWithValue(error.message);
     }

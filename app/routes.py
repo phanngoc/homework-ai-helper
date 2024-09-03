@@ -1,11 +1,12 @@
 from flask import Blueprint, request, jsonify, url_for, session, redirect
-from .models import User
+from .models import Answer, Question, User
 from .extensions import db, google
 from flask import current_app
 import jwt
 import datetime
 from functools import wraps
 from .openai_resolve import resolve_solution
+from .auth import token_required  # Updated import
 import cv2
 import numpy as np
 import uuid
@@ -13,35 +14,11 @@ import os
 
 main_bp = Blueprint('main', __name__)
 
-def token_required(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        token = None
-        if 'x-access-token' in request.headers:
-            token = request.headers['x-access-token']
-        if not token:
-            return jsonify({'message': 'Token is missing!'}), 401
-
-        try:
-            data = jwt.decode(token, current_app.config['SECRET_KEY'], algorithms=["HS256"])
-            current_user = User.query.filter_by(identity=data['id']).first()
-        except jwt.ExpiredSignatureError:
-            return {'message': 'Token has expired!', 'code': 401, 'extra_code': 2}
-        except jwt.InvalidTokenError:
-            return {'message': 'Token is invalid!', 'code': 401, 'extra_code': 1}
-        except Exception as e:
-            return jsonify({'message': 'Token is invalid!'}), 401
-
-        return f(current_user, *args, **kwargs)
-
-    return decorated
-
 # Routes
 @main_bp.route('/login')
 def login():
     redirect_uri = url_for('main.authorized', _external=True)
     return google.authorize_redirect(redirect_uri)
-
 
 def generate_token(user_info):
     payload = {
@@ -96,13 +73,36 @@ def index():
 @main_bp.route('/api/answer', methods=['POST'])
 @token_required
 def answer(current_user):
+    print('answer:current_user', current_user)
     data = request.get_json()
     action = data['action']
     imageSrc = data['imageSrc']
     print('method:answer', action, imageSrc)
+
     response = resolve_solution(imageSrc, action)
-    print('method:ai-answer', response)
-    return jsonify({'response': response})
+    question = Question(
+        question_text=imageSrc,
+        category='math',
+        grade=10,
+        user_id=current_user.id,
+        answer_text=response['response']['parsed']['final_answer'],
+        type='link'
+    )
+
+    db.session.add(question)
+    db.session.commit()
+
+    answer = Answer(
+        question_id=question.id,
+        content=response['response']['content'],
+        role='bot'
+    )
+
+    db.session.add(answer)
+    db.session.commit()
+    
+    question_dict = question.to_dict()
+    return jsonify({'answer': response, 'question': question_dict})
 
 @main_bp.route('/upload_screenshot', methods=['POST'])
 def upload_screenshot():
@@ -118,27 +118,21 @@ def upload_screenshot():
 
     return jsonify({'temporary_url': temp_filepath})
 
-# @main_bp.route('/questions/<int:question_id>/comments', methods=['GET'])
-# def get_comments(question_id):
-#     comments = Comment.query.filter_by(question_id=question_id).all()
-#     return jsonify([{
-#         'id': comment.id,
-#         'user': {'id': comment.user.id, 'email': comment.user.email},
-#         'text': comment.text
-#     } for comment in comments])
+@main_bp.route('/question/<int:question_id>', methods=['GET'])
+def get_question_and_answer(question_id):
+    question = Question.query.get_or_404(question_id)
+    answer = Answer.query.filter_by(question_id=question_id).first()
+    
+    if not answer:
+        return jsonify({'error': 'Answer not found'}), 404
 
-# @main_bp.route('/questions/<int:question_id>/comments', methods=['POST'])
-# def post_comment(question_id):
-#     data = request.json
-#     comment = Comment(
-#         question_id=question_id,
-#         user_id=data['userId'],
-#         text=data['text']
-#     )
-#     db.session.add(comment)
-#     db.session.commit()
-#     return jsonify({
-#         'id': comment.id,
-#         'user': {'id': comment.user.id, 'email': comment.user.email},
-#         'text': comment.text
-#     })
+    question_dict = question.to_dict()
+    answer_dict = {
+        'id': answer.id,
+        'content': answer.content,
+        'role': answer.role,
+        'created_at': answer.created_at,
+        'updated_at': answer.updated_at
+    }
+
+    return jsonify({'question': question_dict, 'answer': answer_dict})

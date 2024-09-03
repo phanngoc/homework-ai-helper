@@ -23,7 +23,6 @@ const MathResponseComponent: React.FC<MathResponseComponentProps> = ({ response 
 
   return (
     <div className="math-response p-4 border rounded">
-      <h2 className="text-xl font-semibold mb-2">Math Response:</h2>
       <div className="steps mb-4">
         {steps.map((step, index) => (
           <div key={index} className="step mb-2">

@@ -28,11 +28,17 @@
 - Các tài liệu được đánh level, dựa trên số bài học sinh làm được trong một khoảng thời gian.
 
 ### Các tính năng phụ.
-- Build job clean các file upload người dùng tải lên.
+
+Build job clean các file upload người dùng tải lên.
 
 ### Tính năng crawling các đề thi thử luyện thi Đại học từ các trang web uy tín.
-- Website ni open, không cần login.
+
+Website ni open, không cần login.
 https://thcs.toanmath.com/2024/06/de-tuyen-sinh-lop-10-chuyen-mon-toan-co-so-nam-2024-2025-so-gddt-dong-thap.html
+
+## Xây dựng AI agent bóc tách câu hỏi + câu trả lời từ tài liệu.
+
+- Bao gồm file PDF, ảnh chụp, văn bản.
 
 
 ## Đánh giá tính khả thi của việc chấm bài tự động.
