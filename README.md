@@ -48,3 +48,9 @@ cd frontend
 npm install
 npm start dev
 ```
+
+## Flow migration database.
+```
+flask db migrate -m "change:table comments"
+flask db upgrade
+```

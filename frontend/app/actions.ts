@@ -1,7 +1,6 @@
 import { createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
-
-const BASE_URL = 'http://127.0.0.1:5000';
+import { BASE_URL } from './config';
 
 const dataURLtoBlob = (dataurl: string) => {
   const arr = dataurl.split(',');
@@ -52,7 +51,7 @@ export const getAnswer = createAsyncThunk(
         },
       });
       console.log('getAnswer:response:', response);
-      return response.data.response;
+      return response.data;
     } catch (error) {
       return rejectWithValue(error.message);
     }
