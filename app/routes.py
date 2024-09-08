@@ -1,4 +1,6 @@
-from flask import Blueprint, request, jsonify, url_for, session, redirect
+from flask import Blueprint, request, jsonify, send_from_directory, url_for, session, redirect
+
+from app.config import Config
 from .models import Answer, Question, User
 from .extensions import db, google
 from flask import current_app
@@ -118,7 +120,18 @@ def upload_screenshot():
 
     return jsonify({'temporary_url': temp_filepath})
 
-@main_bp.route('/question/<int:question_id>', methods=['GET'])
+@main_bp.route('/uploads/<string:filename>', methods=['GET'])
+def server_imagefile(filename):
+    try:
+        print('server_imagefile', filename)
+        data = send_from_directory('../uploads', filename)
+        print('server_imagefile: data', data)
+        return data
+    except Exception as e:
+        print('server_imagefile:exception', e)
+        return jsonify({'error': str(e)}), 500
+
+@main_bp.route('/api/questions/<int:question_id>', methods=['GET'])
 def get_question_and_answer(question_id):
     question = Question.query.get_or_404(question_id)
     answer = Answer.query.filter_by(question_id=question_id).first()
@@ -127,6 +140,8 @@ def get_question_and_answer(question_id):
         return jsonify({'error': 'Answer not found'}), 404
 
     question_dict = question.to_dict()
+    print('question_dict', question_dict)
+    question_dict['question_text'] = Config.BASE_URL + '/' + question_dict['question_text']
     answer_dict = {
         'id': answer.id,
         'content': answer.content,

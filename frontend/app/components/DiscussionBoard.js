@@ -1,27 +1,31 @@
+"use client";
+
 import React, { useState, useEffect } from 'react';
-import { useSelector } from 'react-redux';
 import axios from 'axios';
+import { BASE_URL } from '../config';
+import { getTokenFromLocalStorage } from '../utils/token';
 
 const DiscussionBoard = ({ questionId }) => {
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState('');
-  const user = useSelector(state => state.user);
-
+  const token = getTokenFromLocalStorage();
+  console.log('DiscussionBoard:token', token, questionId);
   useEffect(() => {
     const fetchComments = async () => {
-      const response = await axios.get(`/api/questions/${questionId}/comments`);
+      const response = await axios.get(BASE_URL + `/api/questions/${questionId}/comments`);
       setComments(response.data);
     };
+    console.log('DiscussionBoard:fetchComments', questionId);
     fetchComments();
-  }, [questionId]);
+  }, []);
 
   const handleCommentSubmit = async () => {
     if (newComment.trim()) {
-      const response = await axios.post(`/api/questions/${questionId}/comments`, {
+      const response = await axios.post(BASE_URL + `/api/questions/${questionId}/comments`, {
         text: newComment,
       }, {
         headers: {
-          'x-access-token': user.token
+          'x-access-token': token
         }
       });
       setComments([...comments, response.data]);
@@ -35,7 +39,7 @@ const DiscussionBoard = ({ questionId }) => {
       <div className="comments space-y-4">
         {comments.map(comment => (
           <div key={comment.id} className="comment p-2 bg-gray-100 rounded-md">
-            <p className="text-sm"><strong>{comment.user.email}:</strong> {comment.text}</p>
+            <p className="text-sm"><strong>{comment.user.name}:</strong> {comment.text}</p>
           </div>
         ))}
       </div>

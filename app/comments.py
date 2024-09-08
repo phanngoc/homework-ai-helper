@@ -8,12 +8,15 @@ comments_bp = Blueprint('comments', __name__)
 
 @comments_bp.route('/questions/<int:question_id>/comments', methods=['GET'])
 def get_comments(question_id):
+    print('route:question_id', question_id)
     comments = Comment.query.filter_by(question_id=question_id).all()
-    return jsonify([{
+    response_arr = [{
         'id': comment.id,
-        'user': {'id': comment.user.id, 'email': comment.user.email},
-        'text': comment.text
-    } for comment in comments])
+        'text': comment.text,
+        'user': comment.user.to_dict(),
+    } for comment in comments]
+
+    return jsonify(response_arr)
 
 @comments_bp.route('/questions/<int:question_id>/comments', methods=['POST'])
 @token_required
@@ -28,6 +31,6 @@ def post_comment(current_user, question_id):
     db.session.commit()
     return jsonify({
         'id': comment.id,
-        'user': {'id': comment.user.id, 'email': comment.user.email},
+        'user': current_user,
         'text': comment.text
     })

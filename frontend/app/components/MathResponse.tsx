@@ -24,7 +24,7 @@ const MathResponseComponent: React.FC<MathResponseComponentProps> = ({ response 
   return (
     <div className="math-response p-4 border rounded">
       <div className="steps mb-4">
-        {steps.map((step, index) => (
+        {steps && steps.map((step, index) => (
           <div key={index} className="step mb-2">
             <div className="explanation mb-1">
               <strong>Explanation:</strong> <br />

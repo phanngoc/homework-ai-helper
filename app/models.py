@@ -12,6 +12,13 @@ class User(db.Model):
     profile_pic = db.Column(db.String(200), nullable=True)
     subscription = db.Column(db.String(10), nullable=True)  # 'free' or 'premium'
 
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'email': self.email,
+            'name': self.name,
+        }
+
 class Question(db.Model):
     __tablename__ = 'questions'
     id = db.Column(db.Integer, primary_key=True)
@@ -53,6 +60,7 @@ class Comment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     question_id = db.Column(db.Integer, db.ForeignKey('questions.id'), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    user = db.relationship('User', backref=db.backref('comments', lazy=True))
     text = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.TIMESTAMP(timezone=True), default=datetime.datetime.utcnow)
     updated_at = db.Column(db.TIMESTAMP(timezone=True), default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
