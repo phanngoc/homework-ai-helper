@@ -4,8 +4,6 @@ from flask_cors import CORS
 import json
 import os
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-
-from sqlalchemy import create_engine
 from utils import load_google_creds
 import psycopg2
 

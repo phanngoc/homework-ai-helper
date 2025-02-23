@@ -16,6 +16,11 @@ import os
 app = Flask(__name__, static_folder='static', template_folder='templates')
 app.config.from_object(Config)
 app.config["SQLALCHEMY_DATABASE_URI"] = Config.SQLALCHEMY_DATABASE_URI
+app.config["SECRET_KEY"] = os.getenv('SECRET_KEY')
+print('SECRET_KEY', os.getenv('SECRET_KEY'))
+
+UPLOAD_FOLDER = 'uploads'
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 # Initialize extensions
 db.init_app(app)
