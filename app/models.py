@@ -68,7 +68,8 @@ class Comment(db.Model):
         self.question_id = question_id
         self.user_id = user_id
         self.text = text
-    
+
+# Module chấm điểm cho người dùng.
 class Performance(db.Model):
     __tablename__ = 'performances'
     id = db.Column(db.Integer, primary_key=True)
