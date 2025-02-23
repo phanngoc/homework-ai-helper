@@ -34,11 +34,50 @@ POSTGRES_PASSWORD=password
 POSTGRES_DB=dbname
 ```
 
+## Environment Variables (.env)
+```
+# Database configuration
+SQLALCHEMY_DATABASE_URI=postgresql://user:password@db:5432/dbname
+
+# Google OAuth configuration
+GOOGLE_CLIENT_ID=your_google_client_id GOOGLE_CLIENT_SECRET=your_google_client_secret
+
+# OpenAI API Key
+OPENAI_API_KEY=your_openai_api_key
+
+# Flask configuration
+FLASK_ENV=development FLASK_DEBUG=1
+
+# Docker Compose configuration
+POSTGRES_USER=user
+POSTGRES_PASSWORD=password
+POSTGRES_DB=dbname
+```
+
+## Database Setup
+1. Start PostgreSQL using Docker:
+```bash
+docker-compose up -d db
+```
+
+2. Wait a few seconds for the database to initialize
+
+3. Verify database connection:
+```bash
+docker-compose exec db psql -U user -d dbname
+```
+
 ## Run for development
 - Backend
 ```bash
+# Create and activate virtual environment
+python -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+
+# Install dependencies and run
 cd backend
 pip install -r requirements.txt
+flask db upgrade  # Apply migrations
 python run.py
 ```
 
@@ -46,11 +85,3 @@ python run.py
 ```bash
 cd frontend
 npm install
-npm start dev
-```
-
-## Flow migration database.
-```
-flask db migrate -m "change:table comments"
-flask db upgrade
-```

@@ -3,9 +3,31 @@ from authlib.integrations.flask_client import OAuth
 from flask_cors import CORS
 import json
 import os
-from .utils import load_google_creds
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-db = SQLAlchemy()
+from sqlalchemy import create_engine
+from utils import load_google_creds
+import psycopg2
+
+conn = psycopg2.connect(
+    database="homeworkdb",
+    user="user", 
+    password="password",
+    host="localhost",
+    port="5485"
+)
+
+try:
+    conn.cursor().execute('SELECT 1')
+    print("Successfully connected to the database!")
+except Exception as e:
+    print(f"Error connecting to the database: {e}")
+
+
+class Base(DeclarativeBase):
+    pass
+
+db = SQLAlchemy(model_class=Base)
 oauth = OAuth()
 cors = CORS()
 

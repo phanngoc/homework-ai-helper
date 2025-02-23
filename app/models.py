@@ -1,5 +1,5 @@
 from traitlets import default
-from .extensions import db
+from extensions import db
 import datetime
 
 class User(db.Model):
