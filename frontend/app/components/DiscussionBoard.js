@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import { BASE_URL } from '../config';
 import { getTokenFromLocalStorage } from '../utils/token';
 
@@ -12,24 +11,37 @@ const DiscussionBoard = ({ questionId }) => {
   console.log('DiscussionBoard:token', token, questionId);
   useEffect(() => {
     const fetchComments = async () => {
-      const response = await axios.get(BASE_URL + `/api/questions/${questionId}/comments`);
-      setComments(response.data);
+      const response = await fetch(BASE_URL + `/api/questions/${questionId}/comments`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'x-access-token': token || ''
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setComments(data);
+      }
     };
     console.log('DiscussionBoard:fetchComments', questionId);
     fetchComments();
-  }, []);
+  }, [questionId, token]);
 
   const handleCommentSubmit = async () => {
     if (newComment.trim()) {
-      const response = await axios.post(BASE_URL + `/api/questions/${questionId}/comments`, {
-        text: newComment,
-      }, {
+      const response = await fetch(BASE_URL + `/api/questions/${questionId}/comments`, {
+        method: 'POST',
         headers: {
-          'x-access-token': token
-        }
+          'Content-Type': 'application/json',
+          'x-access-token': token || ''
+        },
+        body: JSON.stringify({ text: newComment }),
       });
-      setComments([...comments, response.data]);
-      setNewComment('');
+
+      if (response.ok) {
+        const data = await response.json();
+        setComments([...comments, data]);
+        setNewComment('');
+      }
     }
   };
 
