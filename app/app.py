@@ -112,6 +112,7 @@ def answer(current_user):
 
 # Comment routes
 @app.route('/api/questions/<int:question_id>/comments', methods=['GET'])
+@token_required
 def get_comments(question_id):
     comments = Comment.query.filter_by(question_id=question_id).all()
     response_arr = [{

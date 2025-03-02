@@ -17,7 +17,7 @@ function HomePage({  }) {
   const [file, setFile] = useState<File | null>(null);
   const [screenshot, setScreenshot] = useState(null);
   const imageSrc = useSelector((state: RootState<any, any, any>) => state.imageSrc);
-  const question = useSelector((state: RootState) => state.question);
+  const question = useSelector((state: RootState<any, any, any>) => state.question);
   const dispatch = useDispatch();
   const answer = useSelector((state: RootState) => state.answer);
   const webcamRef = useRef(null);
