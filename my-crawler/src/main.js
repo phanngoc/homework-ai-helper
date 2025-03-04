@@ -8,7 +8,37 @@ const crawler = new PlaywrightCrawler({
     async requestHandler({ request, page, enqueueLinks, log, pushData }) {
         const title = await page.title();
         log.info(`Title of ${request.loadedUrl} is '${title}'`);
-        const content = await page.$eval('#content', el => el.innerText);
+
+        // Find all job title elements and extract their URLs
+        const jobLinks = await page.$$eval('h3.imt-3[data-controller="utm-tracking"]', elements => {
+            return elements.map(el => {
+                const url = el.getAttribute('data-url');
+                const title = el.textContent.trim();
+                return { url, title };
+            });
+        });
+        log.info('jobLinks', jobLinks);
+        // Enqueue job detail pages
+        for (const job of jobLinks) {
+            if (job.url) {
+                await crawler.addRequests([job.url]);
+                log.info(`Enqueued job: ${job.title} - ${job.url}`);
+            }
+        }
+
+        // Return early if no job links are found
+        if (jobLinks.length > 0) {
+            log.info(`This is job listing page: ${request.loadedUrl}`);
+            return;
+        }
+
+        const content = await page.$eval('.icontainer', el => el.innerText);
+        // Check if content exists; if not, skip processing
+        if (!content) {
+            log.info(`No content found for ${request.loadedUrl}. Skipping...`);
+            return;
+        }
+
         // Save results as JSON to ./storage/datasets/default
         await pushData({ title, url: request.loadedUrl, content: content });
 
@@ -23,4 +53,4 @@ const crawler = new PlaywrightCrawler({
 });
 
 // Add first URL to the queue and start the crawl.
-await crawler.run(['https://developers.asana.com/docs/getting-started-with-asana-oauth']);
+await crawler.run(['https://itviec.com/it-jobs']);
