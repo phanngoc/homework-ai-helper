@@ -156,7 +156,7 @@ async def process_audio_recording(audio_chunks):
     # Generate a unique filename with UUID
     temp_filename = f"{uuid.uuid4()}.wav"
     temp_path = os.path.join(temp_dir, temp_filename)
-    
+
     if audio_chunks := cl.user_session.get("audio_chunks"):
         # Concatenate all chunks
         concatenated = np.concatenate(list(audio_chunks))
@@ -167,7 +167,7 @@ async def process_audio_recording(audio_chunks):
             wav_file.setsampwidth(2)  # 2 bytes per sample (16-bit)
             wav_file.setframerate(24000)  # sample rate (24kHz PCM)
             wav_file.writeframes(concatenated.tobytes())
-        
+
         cl.user_session.set("audio_chunks", [])
     
     # Convert speech to text
@@ -185,7 +185,6 @@ async def process_audio_recording(audio_chunks):
         user_phonemes = text_to_phonemes(user_text)
 
         input_audio_el = cl.Audio(path=temp_path, mime="audio/wav")
-
         # Evaluate pronunciation
         pronunciation_evaluator = cl.user_session.get("pronunciation_evaluator")
         evaluation = await cl.make_async(pronunciation_evaluator)(
